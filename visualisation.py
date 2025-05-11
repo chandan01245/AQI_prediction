@@ -9,6 +9,7 @@ def visualize_predictions(prediction_file):
     
     # Convert timestamp column
     data['timestamp'] = pd.to_datetime(data['timestamp'])
+    print(data['timestamp'].head())
 
     # Plot actual vs predicted
     plt.figure(figsize=(14, 7))
