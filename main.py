@@ -13,7 +13,7 @@ from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 csv_folder = r"C:\Users\sreeh\Documents\GitHub\AQI_prediction\output"
 target_column = "ColumnAmountSO2"
 sequence_length = 10
-epochs = 50
+epochs = 10
 batch_size = 32
 
 def load_data(csv_folder, target_column):
