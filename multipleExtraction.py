@@ -1,50 +1,48 @@
-import tarfile
+import os
 import xarray as xr
 import pandas as pd
-import os
+import h5py
 
-def extract_multiple_tar_gz_to_csv(input_folder, output_folder):
-    # Ensure the output folder exists
-    os.makedirs(output_folder, exist_ok=True)
-    
-    # Process all .tar.gz files in the input folder
-    for tar_gz_file in os.listdir(input_folder):
-        if tar_gz_file.endswith(".tar.gz"):
-            tar_gz_path = os.path.join(input_folder, tar_gz_file)
-            print(f"Processing: {tar_gz_path}")
-            
-            # Create a temporary folder for extraction
-            temp_extract_folder = os.path.join(output_folder, "temp_extracted")
-            os.makedirs(temp_extract_folder, exist_ok=True)
-            
-            # Extract the .tar.gz file
-            with tarfile.open(tar_gz_path, "r:gz") as tar:
-                tar.extractall(temp_extract_folder)
-            
-            # Convert each extracted NetCDF file to CSV
-            for file in os.listdir(temp_extract_folder):
-                file_path = os.path.join(temp_extract_folder, file)
-                if file.endswith(".nc"):
-                    # Load NetCDF file using xarray
-                    ds = xr.open_dataset(file_path)
-                    
-                    # Convert entire dataset to DataFrame
-                    df = ds.to_dataframe().reset_index()
-                    
-                    # Save the DataFrame to a CSV file
-                    output_csv = os.path.join(output_folder, f"{os.path.splitext(file)[0]}.csv")
-                    df.to_csv(output_csv, index=False)
-                    print(f"Extracted data from {file} saved to {output_csv}")
-            
-            # Clean up the temporary extraction folder
-            for file in os.listdir(temp_extract_folder):
-                os.remove(os.path.join(temp_extract_folder, file))
-            os.rmdir(temp_extract_folder)
-    
-    print("All .tar.gz files processed.")
+# === CONFIGURATION ===
+input_folder = r"D:\chand\downloads\OMPS_NPP_NMSO2_PCA_L2_2-20250501_182148"
+output_folder = r"C:\Users\chand\Documents\Coding\python\AQI_prediction\output"
+group_name = "SCIENCE_DATA"
+variable_name = "ColumnAmountSO2"
 
-# Example usage
-extract_multiple_tar_gz_to_csv(
-    input_folder="path/to/your/folder/containing/tar_gz_files", 
-    output_folder="path/to/your/output_folder"
-)
+# Create output folder if it doesn't exist
+os.makedirs(output_folder, exist_ok=True)
+
+# === FUNCTION TO PROCESS SINGLE FILE ===
+def process_file(file_path):
+    try:
+        ds = xr.open_dataset(file_path, engine="netcdf4", group=group_name)
+        
+        if variable_name not in ds.variables:
+            print(f"[SKIPPED] {os.path.basename(file_path)}: Variable not found.")
+            return
+        
+        df = ds[variable_name].to_dataframe().reset_index().dropna()
+
+        # Add time column if exists in other groups
+        try:
+            time_ds = xr.open_dataset(file_path, engine="netcdf4", group="GEOLOCATION_DATA")
+            if 'Time' in time_ds.variables:
+                df['time'] = pd.to_datetime(time_ds['Time'].values, unit='s', origin='unix')
+            else:
+                df['time'] = pd.date_range(start='2024-01-01', periods=len(df), freq='H')
+        except Exception as e:
+            print(f"[WARNING] Could not load time from GEOLOCATION_DATA: {e}")
+            df['time'] = pd.date_range(start='2024-01-01', periods=len(df), freq='H')
+
+        csv_name = os.path.splitext(os.path.basename(file_path))[0] + ".csv"
+        csv_path = os.path.join(output_folder, csv_name)
+        df.to_csv(csv_path, index=False)
+        print(f"[DONE] {csv_name}")
+    except Exception as e:
+        print(f"[ERROR] {os.path.basename(file_path)}: {e}")
+
+# === LOOP OVER FILES ===
+for filename in os.listdir(input_folder):
+    if filename.endswith(".nc") or filename.endswith(".h5"):
+        full_path = os.path.join(input_folder, filename)
+        process_file(full_path)
