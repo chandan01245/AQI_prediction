@@ -8,7 +8,7 @@ from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, TimeSeriesSplit
 
 # === CONFIG ===
-csv_folder = r"C:\Users\sreeh\Documents\GitHub\AQI_prediction\output"
+csv_folder = r"C:\Users\chand\Documents\Coding\python\AQI_prediction\output"
 target_column = "ColumnAmountSO2"
 sequence_length = 10
 
