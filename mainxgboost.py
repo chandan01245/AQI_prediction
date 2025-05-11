@@ -7,6 +7,7 @@ from sklearn.metrics import mean_squared_error, r2_score
 from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, TimeSeriesSplit
 
+
 # === CONFIG ===
 csv_folder = r"C:\Users\chand\Documents\Coding\python\AQI_prediction\output"
 target_column = "ColumnAmountSO2"
@@ -90,11 +91,11 @@ best_model = random_search.best_estimator_
 y_pred = best_model.predict(X_test)
 
 # === METRICS ===
-#mse = mean_squared_error(y_test, y_pred)
-#r2 = r2_score(y_test, y_pred)
-#
-#print(f"\nMSE: {mse:.6f}")
-#print(f"R² Score: {r2:.6f}")
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+
+print(f"\nMSE: {mse:.6f}")
+print(f"R² Score: {r2:.6f}")
 #
 # === OUTPUT PREDICTIONS TO CSV ===
 result_df = pd.DataFrame({

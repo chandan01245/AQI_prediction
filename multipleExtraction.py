@@ -1,7 +1,8 @@
 import os
-import xarray as xr
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+import xarray as xr
 
 # === CONFIGURATION ===
 input_folder = r"D:\chand\downloads\OMPS_NPP_NMSO2_PCA_L2_2-20250501_182148"
@@ -9,8 +10,10 @@ output_folder = r"C:\Users\chand\Documents\Coding\python\AQI_prediction\output"
 group_name = "SCIENCE_DATA"
 variable_name = "ColumnAmountSO2"
 
+
 # Create output folder if it doesn't exist
 os.makedirs(output_folder, exist_ok=True)
+
 
 # === FUNCTION TO PROCESS SINGLE FILE ===
 def process_file(file_path):
@@ -25,16 +28,18 @@ def process_file(file_path):
         # === Load GEOLOCATION_DATA: lat/lon/time ===
         try:
             geo = xr.open_dataset(file_path, engine="netcdf4", group="GEOLOCATION_DATA")
-            
             # Flatten and match lengths
             lat = geo['Latitude'].values.flatten()
             lon = geo['Longitude'].values.flatten()
             if 'Time' in geo.variables:
-                time = pd.to_datetime(geo['Time'].values.flatten(), unit='s', origin='unix')
+                raw_time = pd.to_datetime(geo['Time'].values.flatten(), unit='s', origin='unix')
+                # Force hourly time intervals starting from the first timestamp
+                start_time = raw_time.min()
+                time = pd.date_range(start=start_time, periods=len(df), freq='h')
             else:
-                time = pd.date_range(start='2024-01-01', periods=len(df), freq='H')
+                time = pd.date_range(start='2024-01-01', periods=len(df), freq='h')
             
-            # Trim to same length if needed
+            # Trim to same length
             min_len = min(len(df), len(lat), len(lon), len(time))
             df = df.iloc[:min_len].copy()
             df['latitude'] = lat[:min_len]
@@ -45,7 +50,7 @@ def process_file(file_path):
             print(f"[WARNING] Could not load geolocation data: {e}")
             df['latitude'] = np.nan
             df['longitude'] = np.nan
-            df['time'] = pd.date_range(start='2024-01-01', periods=len(df), freq='H')
+            df['time'] = pd.date_range(start='2024-01-01', periods=len(df), freq='h')
 
         # === Save CSV ===
         csv_name = os.path.splitext(os.path.basename(file_path))[0] + ".csv"
