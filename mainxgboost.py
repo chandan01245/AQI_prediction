@@ -3,10 +3,10 @@ import numpy as np
 import os
 import glob
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import mean_squared_error, r2_score
 from xgboost import XGBRegressor
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, TimeSeriesSplit
-
+from datetime import datetime
+import joblib  # For saving model and scaler
 
 # === CONFIG ===
 csv_folder = r"C:\Users\sreeh\Documents\GitHub\AQI_prediction\output"
@@ -18,11 +18,11 @@ all_files = glob.glob(os.path.join(csv_folder, "*.csv"))
 df_list = [pd.read_csv(file) for file in all_files]
 data = pd.concat(df_list, ignore_index=True)
 
-# === DEBUGGING: CHECK DATA SIZE ===
-print(f"Initial data size: {data.shape}")
+# === ENSURE 'time' COLUMN IS CONVERTED TO DATETIME ===
+data['time'] = pd.to_datetime(data['time'], errors='coerce')
 
 # === FEATURE ENGINEERING WITH ADAPTIVE SEQUENCE LENGTH ===
-max_sequence_length = 10  # Set max value for sequence length
+max_sequence_length = 10
 available_rows = len(data)
 sequence_length = min(max_sequence_length, available_rows // 2)
 
@@ -37,23 +37,12 @@ for i in range(1, sequence_length + 1):
 data['rolling_mean'] = data[target_column].rolling(window=sequence_length).mean()
 data['exp_smooth'] = data[target_column].ewm(span=sequence_length).mean()
 
-# === DEBUGGING: CHECK FOR MISSING VALUES ===
-print(f"Data before filling NA: {data.shape}")
-print(data.isna().sum())
-
 # === HANDLE MISSING VALUES (FILL INSTEAD OF DROPPING) ===
 data.fillna(method='bfill', inplace=True)
-
-# === CHECK FOR EMPTY DATAFRAME ===
-if data.empty:
-    raise ValueError(f"Dataframe is empty after feature engineering with sequence length {sequence_length}.")
-
-print(f"Final data size after feature engineering: {data.shape}")
 
 # === HANDLE TIME COLUMN ===
 if 'time' not in data.columns:
     raise ValueError("Missing 'time' column in your data.")
-data['time'] = pd.to_datetime(data['time'])
 data.sort_values('time', inplace=True)
 
 # === REMOVE NON-NUMERIC COLUMNS BEFORE SCALING ===
@@ -90,13 +79,6 @@ random_search.fit(X_train, y_train)
 best_model = random_search.best_estimator_
 y_pred = best_model.predict(X_test)
 
-# === METRICS ===
-#mse = mean_squared_error(y_test, y_pred)
-#r2 = r2_score(y_test, y_pred)
-#
-#print(f"\nMSE: {mse:.6f}")
-#print(f"R² Score: {r2:.6f}")
-#
 # === OUTPUT PREDICTIONS TO CSV ===
 result_df = pd.DataFrame({
     'timestamp': data['time'].iloc[-len(y_test):].values,
@@ -110,6 +92,51 @@ output_path = os.path.join(csv_folder, "xgboost_predictions_optimized.csv")
 result_df.to_csv(output_path, index=False)
 print(f"\nSaved predictions to: {output_path}")
 
+# === SAVE THE MODEL AND SCALER ===
+model_file = os.path.join(csv_folder, "xgboost_model.pkl")
+scaler_file = os.path.join(csv_folder, "scaler.pkl")
+
+# Save the trained model and scaler using joblib
+joblib.dump(best_model, model_file)
+joblib.dump(scaler, scaler_file)
+
+print(f"Model and scaler saved to: {model_file}, {scaler_file}")
+
 # === CALL VISUALIZATION SCRIPT ===
 from visualisation import visualize_predictions
 visualize_predictions(output_path)
+
+# === PREDICTING FOR A FUTURE DATE ===
+
+# Get user input for future date
+user_input_date = input("Enter the future date (YYYY-MM-DD) to predict SO2: ")
+
+# Convert the user input to datetime
+try:
+    future_date = pd.to_datetime(user_input_date)
+    print(f"Predictions will be generated for {future_date}")
+except ValueError:
+    print("Invalid date format. Please enter the date in the format YYYY-MM-DD.")
+
+# Extract the most recent row for future prediction
+last_row = data.iloc[-1].copy()  # Most recent data row
+last_row_features = last_row.drop(columns=['time', target_column])  # Drop time and target columns
+
+# Prepare the feature set for prediction
+last_row_features = last_row_features.values.reshape(1, -1)
+last_row_features_scaled = scaler.transform(last_row_features)
+
+# Predict the SO2 value for the future date
+future_prediction = best_model.predict(last_row_features_scaled)
+
+print(f"Predicted SO2 for {future_date}: {future_prediction[0]}")
+
+# OPTIONAL: Save future prediction to a new CSV
+future_result_df = pd.DataFrame({
+    'timestamp': [future_date],
+    'predicted_SO2': future_prediction
+})
+
+future_output_path = os.path.join(csv_folder, "future_predictions.csv")
+future_result_df.to_csv(future_output_path, index=False)
+print(f"Future prediction saved to: {future_output_path}")
