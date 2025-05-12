@@ -6,7 +6,7 @@ import os
 
 # === CONFIG ===
 csv_folder = r"C:\Users\sreeh\Documents\GitHub\AQI_prediction\output"
-prediction_file = os.path.join(csv_folder, "xgboost_predictions_optimized.csv")
+original_data_file = os.path.join(csv_folder, "xgboost_predictions_optimized.csv")
 
 # === LOAD SAVED MODEL AND SCALER ===
 print("Loading saved model and scaler...")
@@ -17,25 +17,14 @@ with open("output/scaler.pkl", "rb") as scaler_file:
 
 print("Loaded saved model and scaler.")
 
-# === LOAD SAVED PREDICTIONS FILE ===
-data = pd.read_csv(prediction_file)
+# === LOAD ORIGINAL DATA USED FOR TRAINING ===
+data = pd.read_csv(original_data_file)
 
-# === REGENERATE FEATURE COLUMNS ===
-sequence_length = 10
-for i in range(1, sequence_length + 1):
-    data[f'lag_{i}'] = data['actual_SO2'].shift(i)
-
-# Rolling mean and exponential smoothing
-data['rolling_mean'] = data['actual_SO2'].rolling(window=sequence_length).mean()
-data['exp_smooth'] = data['actual_SO2'].ewm(span=sequence_length).mean()
-
-# === HANDLE MISSING VALUES ===
-data.fillna(method='bfill', inplace=True)
-
+# === GET FEATURE COLUMNS USED IN TRAINING ===
 feature_columns = [col for col in data.columns if col.startswith("lag_") or col in ["rolling_mean", "exp_smooth"]]
 
 if not feature_columns:
-    raise ValueError("No feature columns could be created. Please check your data.")
+    raise ValueError("No feature columns found in the saved file. Please check your data.")
 
 # === ASK FOR FUTURE DATE ===
 user_input_date = input("Enter the future date (YYYY-MM-DD) to predict SO2: ")
