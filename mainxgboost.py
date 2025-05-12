@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split, RandomizedSearchCV, TimeSe
 
 
 # === CONFIG ===
-csv_folder = r"C:\Users\chand\Documents\Coding\python\AQI_prediction\output"
+csv_folder = r"C:\Users\sreeh\Documents\GitHub\AQI_prediction\output"
 target_column = "ColumnAmountSO2"
 sequence_length = 10
 
@@ -91,15 +91,17 @@ best_model = random_search.best_estimator_
 y_pred = best_model.predict(X_test)
 
 # === METRICS ===
-mse = mean_squared_error(y_test, y_pred)
-r2 = r2_score(y_test, y_pred)
-
-print(f"\nMSE: {mse:.6f}")
-print(f"R² Score: {r2:.6f}")
+#mse = mean_squared_error(y_test, y_pred)
+#r2 = r2_score(y_test, y_pred)
+#
+#print(f"\nMSE: {mse:.6f}")
+#print(f"R² Score: {r2:.6f}")
 #
 # === OUTPUT PREDICTIONS TO CSV ===
 result_df = pd.DataFrame({
     'timestamp': data['time'].iloc[-len(y_test):].values,
+    'latitude': data['latitude'].iloc[-len(y_test):].values if 'latitude' in data.columns else np.nan,
+    'longitude': data['longitude'].iloc[-len(y_test):].values if 'longitude' in data.columns else np.nan,
     'actual_SO2': y_test,
     'predicted_SO2': y_pred
 })
