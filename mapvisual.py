@@ -3,7 +3,7 @@ import folium
 from folium.plugins import HeatMap
 
 # Load the CSV file
-data_path = r"C:\Users\sreeh\Documents\GitHub\AQI_prediction\output\xgboost_predictions_optimized.csv"
+data_path = r"output\xgboost_predictions_optimized.csv"
 data = pd.read_csv(data_path)
 
 # Ensure NaN values are dropped in the relevant columns
@@ -40,6 +40,6 @@ print("Heat Data (First 5 Rows):", heat_data[:5])
 HeatMap(heat_data, radius=10, max_zoom=13).add_to(base_map)
 
 # Save the map as an HTML file
-output_path = r"C:\Users\sreeh\Documents\GitHub\AQI_prediction\predicted_so2_map.html"
+output_path = r"predicted_so2_map_UPDATED.html"
 base_map.save(output_path)
 print(f"Map saved to: {output_path}")
